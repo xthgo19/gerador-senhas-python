@@ -83,7 +83,7 @@ O script é organizado em funções para clareza e manutenção:
   <!-- Substitua com a imagem e informações do autor real -->
   <img src="https://via.placeholder.com/100" width="100px" style="border-radius: 50%" alt="Foto do Autor"/>
   <br/>
-  <strong>[Seu Nome ou Nickname]</strong>
+  <strong>[Thiago Pereirs]</strong>
   <br/>
   <a href="[Link para seu GitHub]">
     <img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Badge"/>
