@@ -89,12 +89,9 @@ Um script Python robusto e interativo para a geração de senhas aleatórias e s
   <a href="https://github.com/xthgo19">
     <img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Badge"/>
   </a>
-  <!-- Adicione seu LinkedIn se desejar -->
-  <!-- 
-  <a href="[Link para seu LinkedIn]">
+  <a href="https://www.linkedin.com/in/xthgo19">
     <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn Badge"/>
   </a>
-  -->
 </div>
 
 ## 📄 Licença
@@ -107,4 +104,5 @@ Este projeto está distribuído sob a licença MIT. Isso significa que você pod
   <p>⭐ Se este projeto foi útil, considere dar uma estrela no repositório! ⭐</p>
   <p>Desenvolvido com Python 🐍 e Tkinter</p>
 </div>
+
 
