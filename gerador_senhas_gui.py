@@ -1,60 +1,77 @@
 # -*- coding: utf-8 -*-
-"""Gerador de Senhas Seguras com Interface Gráfica (Tkinter) - v2"""
+"""Gerador de Senhas Seguras com Interface Gráfica (Tkinter) - v5 (Salva Configs)"""
 
 import tkinter as tk
-from tkinter import ttk  # For themed widgets
+from tkinter import ttk
 from tkinter import messagebox
+from tkinter import scrolledtext
 import random
 import string
+import json # Para salvar/carregar configurações
+import os   # Para obter o diretório do script
 
-# --- Lógica de Geração de Senha (Reutilizada/Adaptada) ---
-def gerar_senha_logica(comprimento, usar_minusculas, usar_maiusculas, usar_digitos, usar_simbolos):
-    """Gera uma senha aleatória com base nas configurações fornecidas."""
-    caracteres = ""
+# --- Constantes ---
+CONFIG_FILE = "gerador_senhas_config.json"
+
+# --- Lógica de Geração de Senha (Mesma da v4) ---
+def gerar_senha_logica(comprimento, usar_minusculas, usar_maiusculas, usar_digitos, usar_simbolos, evitar_ambiguos):
+    """Gera UMA senha aleatória com base nas configurações fornecidas."""
+    ambiguos = 'Il1O0'
+    conjunto_minusculas = string.ascii_lowercase
+    conjunto_maiusculas = string.ascii_uppercase
+    conjunto_digitos = string.digits
+    conjunto_simbolos = string.punctuation.replace('"', '').replace("\\'", '').replace('`', '')
+
+    if evitar_ambiguos:
+        conjunto_minusculas = ''.join(c for c in conjunto_minusculas if c not in ambiguos)
+        conjunto_maiusculas = ''.join(c for c in conjunto_maiusculas if c not in ambiguos)
+        conjunto_digitos = ''.join(c for c in conjunto_digitos if c not in ambiguos)
+
+    caracteres_disponiveis = ""
     senha_parcial = []
 
-    # Adiciona os conjuntos de caracteres selecionados e garante pelo menos um de cada
-    if usar_minusculas:
-        caracteres += string.ascii_lowercase
-        senha_parcial.append(random.choice(string.ascii_lowercase))
-    if usar_maiusculas:
-        caracteres += string.ascii_uppercase
-        senha_parcial.append(random.choice(string.ascii_uppercase))
-    if usar_digitos:
-        caracteres += string.digits
-        senha_parcial.append(random.choice(string.digits))
-    if usar_simbolos:
-        # Escapar caracteres especiais que podem causar problemas em algumas strings ou comandos
-        simbolos_seguros = string.punctuation.replace('"', '').replace("\\\'", '').replace('`', '')
-        caracteres += simbolos_seguros
-        if simbolos_seguros: # Garante que há símbolos seguros para escolher
-             senha_parcial.append(random.choice(simbolos_seguros))
+    if usar_minusculas and conjunto_minusculas:
+        caracteres_disponiveis += conjunto_minusculas
+        senha_parcial.append(random.choice(conjunto_minusculas))
+    if usar_maiusculas and conjunto_maiusculas:
+        caracteres_disponiveis += conjunto_maiusculas
+        senha_parcial.append(random.choice(conjunto_maiusculas))
+    if usar_digitos and conjunto_digitos:
+        caracteres_disponiveis += conjunto_digitos
+        senha_parcial.append(random.choice(conjunto_digitos))
+    if usar_simbolos and conjunto_simbolos:
+        caracteres_disponiveis += conjunto_simbolos
+        senha_parcial.append(random.choice(conjunto_simbolos))
 
-    if not caracteres:
-        # Isso não deve acontecer se a validação da GUI funcionar
+    if not caracteres_disponiveis:
         return None
 
-    # Calcula quantos caracteres restantes são necessários
     comprimento_restante = comprimento - len(senha_parcial)
 
-    # Se o comprimento for menor que os tipos selecionados, pega uma amostra
     if comprimento_restante < 0:
-        senha_parcial = random.sample(senha_parcial, k=comprimento)
+        senha_parcial = random.sample([c for c in senha_parcial if c in caracteres_disponiveis], k=comprimento)
         comprimento_restante = 0
 
-    # Preenche o restante da senha com caracteres aleatórios dos conjuntos selecionados
     for _ in range(comprimento_restante):
-        senha_parcial.append(random.choice(caracteres))
+        senha_parcial.append(random.choice(caracteres_disponiveis))
 
-    # Embaralha a senha final para garantir aleatoriedade na posição dos caracteres garantidos
     random.shuffle(senha_parcial)
     senha_gerada = ''.join(senha_parcial)
 
     return senha_gerada
 
-# --- Funções da Interface --- 
-def gerar_e_exibir_senha():
-    """Obtém configurações da GUI, gera a senha e a exibe."""
+# --- Funções da Interface (Modificada) --- 
+def gerar_e_exibir_senhas():
+    """Obtém configurações da GUI, gera a(s) senha(s) e a(s) exibe."""
+    try:
+        quantidade = int(quantidade_var.get())
+        if not (1 <= quantidade <= 100):
+            messagebox.showerror("Erro de Quantidade", "A quantidade de senhas deve estar entre 1 e 100.")
+            return
+    except ValueError:
+        messagebox.showerror("Erro de Entrada", "Por favor, digite um número inteiro válido para a quantidade.")
+        return
+        
     try:
         comprimento = int(comprimento_var.get())
         if not (8 <= comprimento <= 64):
@@ -68,55 +85,123 @@ def gerar_e_exibir_senha():
     usar_maiusculas = maiusculas_var.get()
     usar_digitos = digitos_var.get()
     usar_simbolos = simbolos_var.get()
+    evitar_ambiguos = ambiguos_var.get()
 
     if not (usar_minusculas or usar_maiusculas or usar_digitos or usar_simbolos):
         messagebox.showerror("Erro de Seleção", "Selecione pelo menos um tipo de caractere para incluir na senha.")
         return
 
-    senha = gerar_senha_logica(comprimento, usar_minusculas, usar_maiusculas, usar_digitos, usar_simbolos)
+    senhas_geradas_lista = []
+    falhas = 0
+    for _ in range(quantidade):
+        senha = gerar_senha_logica(comprimento, usar_minusculas, usar_maiusculas, usar_digitos, usar_simbolos, evitar_ambiguos)
+        if senha:
+            senhas_geradas_lista.append(senha)
+        else:
+            falhas += 1
 
-    if senha:
-        senha_var.set(senha)
+    senhas_text.config(state='normal')
+    senhas_text.delete('1.0', tk.END)
+    
+    if senhas_geradas_lista:
+        senhas_formatadas = "\n".join(senhas_geradas_lista)
+        senhas_text.insert(tk.END, senhas_formatadas)
     else:
-        # Caso a lógica de geração falhe (improvável com validação)
-        messagebox.showerror("Erro Interno", "Ocorreu um erro inesperado ao gerar a senha.")
-        senha_var.set("")
+        senhas_text.insert(tk.END, "Nenhuma senha gerada.")
+        
+    senhas_text.config(state='disabled')
 
-def copiar_senha():
-    """Copia a senha gerada, mostra pop-up e muda texto do botão temporariamente."""
-    senha_gerada = senha_var.get()
-    if senha_gerada:
-        # Copia para a área de transferência
+    if falhas > 0:
+        messagebox.showwarning("Aviso de Falha", f"{falhas} senha(s) não puderam ser geradas devido à combinação de opções.")
+
+def copiar_senhas():
+    """Copia TODAS as senhas geradas."""
+    senhas_geradas_texto = senhas_text.get('1.0', tk.END).strip()
+    
+    if senhas_geradas_texto and senhas_geradas_texto != "Nenhuma senha gerada.":
         root.clipboard_clear()
-        root.clipboard_append(senha_gerada)
-
-        # Guarda o texto original e muda o botão
+        root.clipboard_append(senhas_geradas_texto)
+        
         original_text = copiar_button.cget("text")
         copiar_button.config(text="Copiado!", state="disabled")
-
-        # Função para reverter o botão ao estado original
         def revert_button():
             copiar_button.config(text=original_text, state="normal")
-
-        # Agenda a reversão após 2000ms (2 segundos)
         root.after(2000, revert_button)
-
-        # Mostra a janela pop-up de confirmação (conforme solicitado)
-        messagebox.showinfo("Copiado", "Senha copiada com sucesso para a área de transferência!")
+        
+        messagebox.showinfo("Copiado", f"{len(senhas_geradas_texto.splitlines())} senha(s) copiada(s) com sucesso!")
     else:
-        messagebox.showwarning("Aviso", "Não há senha gerada para copiar.")
+        messagebox.showwarning("Aviso", "Não há senhas geradas para copiar.")
+
+# --- Funções de Configuração --- 
+def get_script_dir():
+    """Retorna o diretório onde o script está sendo executado."""
+    # Se executando como script normal
+    if "__file__" in globals():
+        return os.path.dirname(os.path.abspath(__file__))
+    # Se executando de forma interativa ou empacotado (fallback)
+    return os.getcwd()
+
+def load_config():
+    """Carrega as configurações do arquivo JSON, se existir."""
+    config_path = os.path.join(get_script_dir(), CONFIG_FILE)
+    try:
+        if os.path.exists(config_path):
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+                # Define os valores das variáveis Tkinter com base no config
+                quantidade_var.set(config.get('quantidade', '1'))
+                comprimento_var.set(config.get('comprimento', '16'))
+                minusculas_var.set(config.get('usar_minusculas', True))
+                maiusculas_var.set(config.get('usar_maiusculas', True))
+                digitos_var.set(config.get('usar_digitos', True))
+                simbolos_var.set(config.get('usar_simbolos', True))
+                ambiguos_var.set(config.get('evitar_ambiguos', False))
+    except (IOError, json.JSONDecodeError) as e:
+        print(f"Erro ao carregar configurações de {config_path}: {e}")
+        # Usa padrões se o carregamento falhar
+        set_default_configs()
+
+def save_config():
+    """Salva as configurações atuais no arquivo JSON."""
+    config = {
+        'quantidade': quantidade_var.get(),
+        'comprimento': comprimento_var.get(),
+        'usar_minusculas': minusculas_var.get(),
+        'usar_maiusculas': maiusculas_var.get(),
+        'usar_digitos': digitos_var.get(),
+        'usar_simbolos': simbolos_var.get(),
+        'evitar_ambiguos': ambiguos_var.get()
+    }
+    config_path = os.path.join(get_script_dir(), CONFIG_FILE)
+    try:
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=4)
+    except IOError as e:
+        print(f"Erro ao salvar configurações em {config_path}: {e}")
+
+def set_default_configs():
+    """Define os valores padrão para as variáveis Tkinter."""
+    quantidade_var.set('1')
+    comprimento_var.set('16')
+    minusculas_var.set(True)
+    maiusculas_var.set(True)
+    digitos_var.set(True)
+    simbolos_var.set(True)
+    ambiguos_var.set(False)
+
+def on_closing():
+    """Função chamada quando a janela é fechada."""
+    save_config() # Salva as configurações antes de fechar
+    root.destroy()
 
 # --- Configuração da Janela Principal --- 
 root = tk.Tk()
 root.title("Gerador de Senhas Seguras")
-root.geometry("420x420") # Altura aumentada para garantir visibilidade
-root.resizable(False, False) # Impede redimensionamento
+root.geometry("450x550") 
+root.resizable(False, False) 
 
-# Estilo ttk para uma aparência mais moderna
 style = ttk.Style()
-# Tenta usar um tema mais moderno se disponível (pode variar por OS)
 try:
-    # Prioriza temas que permitem colorir botões mais facilmente
     if 'clam' in style.theme_names():
         style.theme_use('clam')
     elif 'alt' in style.theme_names():
@@ -124,73 +209,78 @@ try:
     elif 'default' in style.theme_names():
         style.theme_use('default')
     else:
-        # Fallback para o primeiro tema disponível se nenhum dos preferidos for encontrado
         style.theme_use(style.theme_names()[0])
 except tk.TclError:
-     # Em caso de erro ao definir tema, usa o padrão do sistema
      pass
+
+# --- Variáveis Tkinter --- (Definidas antes de carregar config)
+quantidade_var = tk.StringVar()
+comprimento_var = tk.StringVar()
+minusculas_var = tk.BooleanVar()
+maiusculas_var = tk.BooleanVar()
+digitos_var = tk.BooleanVar()
+simbolos_var = tk.BooleanVar()
+ambiguos_var = tk.BooleanVar()
+
+# --- Carregar Configurações ou Definir Padrões ---
+load_config() # Tenta carregar configs salvas
 
 # --- Widgets da Interface --- 
 
-# Frame principal para melhor organização e padding
 main_frame = ttk.Frame(root, padding="20")
 main_frame.pack(expand=True, fill="both")
 
-# Seção de Comprimento
-comprimento_frame = ttk.Frame(main_frame)
-comprimento_frame.pack(fill="x", pady=5)
-ttk.Label(comprimento_frame, text="Comprimento (8-64):").pack(side="left", padx=(0, 10))
-comprimento_var = tk.StringVar(value="16") # Padrão aumentado
-comprimento_entry = ttk.Entry(comprimento_frame, textvariable=comprimento_var, width=5, justify='center')
-comprimento_entry.pack(side="left")
+config_frame = ttk.Frame(main_frame)
+config_frame.pack(fill="x", pady=5)
 
-# Seção de Checkboxes para Tipos de Caracteres
-checkbox_frame = ttk.LabelFrame(main_frame, text="Incluir Tipos de Caracteres", padding="15")
+quantidade_frame = ttk.Frame(config_frame)
+quantidade_frame.pack(side="left", padx=(0, 20))
+ttk.Label(quantidade_frame, text="Quantidade (1-100):").pack(anchor='w')
+quantidade_entry = ttk.Entry(quantidade_frame, textvariable=quantidade_var, width=5, justify='center')
+quantidade_entry.pack(anchor='w')
+
+comprimento_frame = ttk.Frame(config_frame)
+comprimento_frame.pack(side="left")
+ttk.Label(comprimento_frame, text="Comprimento (8-64):").pack(anchor='w')
+comprimento_entry = ttk.Entry(comprimento_frame, textvariable=comprimento_var, width=5, justify='center')
+comprimento_entry.pack(anchor='w')
+
+checkbox_frame = ttk.LabelFrame(main_frame, text="Opções de Caracteres", padding="15")
 checkbox_frame.pack(fill="x", pady=10)
 
-minusculas_var = tk.BooleanVar(value=True)
 chk_minusculas = ttk.Checkbutton(checkbox_frame, text="Letras Minúsculas (a-z)", variable=minusculas_var)
 chk_minusculas.pack(anchor="w", pady=2)
 
-maiusculas_var = tk.BooleanVar(value=True)
 chk_maiusculas = ttk.Checkbutton(checkbox_frame, text="Letras Maiúsculas (A-Z)", variable=maiusculas_var)
 chk_maiusculas.pack(anchor="w", pady=2)
 
-digitos_var = tk.BooleanVar(value=True)
 chk_digitos = ttk.Checkbutton(checkbox_frame, text="Dígitos Numéricos (0-9)", variable=digitos_var)
 chk_digitos.pack(anchor="w", pady=2)
 
-simbolos_var = tk.BooleanVar(value=True)
 chk_simbolos = ttk.Checkbutton(checkbox_frame, text="Símbolos Especiais (!@#...)", variable=simbolos_var)
 chk_simbolos.pack(anchor="w", pady=2)
 
-# Botão para Gerar a Senha
-gerar_button = ttk.Button(main_frame, text="🔑 Gerar Senha Segura", command=gerar_e_exibir_senha, style='Accent.TButton') # Estilo opcional
-gerar_button.pack(pady=15, ipady=5) # Aumenta o padding vertical interno
+chk_ambiguos = ttk.Checkbutton(checkbox_frame, text="Evitar Caracteres Ambíguos (I, l, 1, O, 0)", variable=ambiguos_var)
+chk_ambiguos.pack(anchor="w", pady=2)
 
-# Seção para Exibir a Senha Gerada
-senhagerada_frame = ttk.Frame(main_frame)
-senhagerada_frame.pack(fill="x", pady=5)
-ttk.Label(senhagerada_frame, text="Senha Gerada:").pack(side="left", padx=(0, 10))
-senha_var = tk.StringVar()
-senha_entry = ttk.Entry(senhagerada_frame, textvariable=senha_var, state="readonly", font=('Courier', 10)) # Fonte monoespaçada
-senha_entry.pack(side="left", expand=True, fill="x", ipady=3)
+gerar_button = ttk.Button(main_frame, text="🔑 Gerar Senha(s)", command=gerar_e_exibir_senhas, style='Accent.TButton')
+gerar_button.pack(pady=15, ipady=5)
 
-# Configuração de estilo para o botão de copiar (azul)
-# Nota: A capacidade de definir cores de fundo pode depender do tema ttk ativo.
-# 'clam', 'alt', 'default' geralmente permitem isso melhor que 'vista' ou 'aqua'.
+ttk.Label(main_frame, text="Senha(s) Gerada(s):").pack(anchor='w', pady=(5,2))
+senhas_text = scrolledtext.ScrolledText(main_frame, height=6, width=50, wrap=tk.WORD, state='disabled', font=('Courier', 10))
+senhas_text.pack(fill="x", expand=True, pady=(0, 10))
+
 style.configure('Copy.TButton', background='#007bff', foreground='white', font=('Segoe UI', 10))
 style.map('Copy.TButton',
     foreground=[('disabled', '#a0a0a0'), ('active', 'white')],
-    background=[('disabled', '#cccccc'), ('active', '#0056b3'), ('!disabled', '#007bff')]) # Garante a cor azul no estado normal
-
-# Botão para Copiar a Senha (com novo estilo)
-copiar_button = ttk.Button(main_frame, text="📋 Copiar Senha", command=copiar_senha, style='Copy.TButton')
-copiar_button.pack(pady=10)
-
-# Configuração de estilo para o botão de gerar (opcional, pode ser ajustado)
+    background=[('disabled', '#cccccc'), ('active', '#0056b3'), ('!disabled', '#007bff')])
 style.configure('Accent.TButton', font=('Segoe UI', 10, 'bold'))
 
-# --- Iniciar Loop Principal da Interface --- 
+copiar_button = ttk.Button(main_frame, text="📋 Copiar Senha(s)", command=copiar_senhas, style='Copy.TButton')
+copiar_button.pack(pady=5)
+
+# --- Vincula o fechamento da janela à função on_closing --- 
+root.protocol("WM_DELETE_WINDOW", on_closing)
+
 root.mainloop()
 
